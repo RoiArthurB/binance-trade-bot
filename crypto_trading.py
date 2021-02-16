@@ -10,6 +10,7 @@ import configparser
 from logging import Handler, Formatter
 import datetime
 import requests
+import random
 
 # Config consts
 CFG_FL_NAME = 'user.cfg'
@@ -58,18 +59,30 @@ class LogstashFormatter(Formatter):
     def format(self, record):
         t = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
-        return "<i>{datetime}</i><pre>\n{message}</pre>".format(message=record.msg, datetime=t)
+        if isinstance(record.msg, dict):
+            message = "<i>{datetime}</i>".format(datetime=t)
 
-# logging to Telegram
-th = RequestsHandler()
-formatter = LogstashFormatter()
-th.setFormatter(formatter)
-logger.addHandler(th)
+            for key in record.msg:
+                message = message + ("<pre>\n{title}: <strong>{value}</strong></pre>".format(title=key, value=record.msg[key]))
+
+            return message
+        else:
+            return "<i>{datetime}</i><pre>\n{message}</pre>".format(message=record.msg, datetime=t)
+
+# logging to Telegram if token exists
+if TELEGRAM_TOKEN:
+    th = RequestsHandler()
+    formatter = LogstashFormatter()
+    th.setFormatter(formatter)
+    logger.addHandler(th)
 
 logger.info('Started')
 
-# Add supported coin symbols here
-supported_coin_list = [u'XLM', u'TRX', u'ICX', u'EOS', u'IOTA', u'ONT', u'QTUM', u'ETC', u'ADA', u'XMR', u'DASH', u'NEO', u'ATOM', u'DOGE', u'VET', u'BAT', u'OMG', u'BTT']
+supported_coin_list = []
+
+# Get supported coin list from supported_coin_list file
+with open('supported_coin_list') as f:
+    supported_coin_list = f.read().upper().splitlines()
 
 # Init config
 config = configparser.ConfigParser()
@@ -91,7 +104,15 @@ class CryptoState():
             self.current_coin = coin
             self.coin_table = coin_table
         else:
+
             current_coin = config.get(USER_CFG_SECTION, 'current_coin')
+
+            if not current_coin:
+
+                current_coin = random.choice(supported_coin_list)
+
+            logger.info("Setting initial coin to {0}".format(current_coin))
+
             if (not current_coin in supported_coin_list):
                 exit(
                     "***\nERROR!\nSince there is no backup file, a proper coin name must be provided at init\n***")
@@ -308,13 +329,13 @@ def initialize_trade_thresholds(client):
     '''
     global g_state
     for coin_dict in g_state.coin_table.copy():
-        coin_dict_price = float(get_market_ticker_price(
-            client, coin_dict + 'USDT'))
+        coin_dict_price = float(get_market_ticker_price(client, coin_dict + 'USDT'))
         for coin in supported_coin_list:
             logger.info("Initializing {0} vs {1}".format(coin_dict, coin))
             if coin != coin_dict:
-                g_state.coin_table[coin_dict][coin] = coin_dict_price / \
-                    float(get_market_ticker_price(client, coin + 'USDT'))
+                coin_price = float(get_market_ticker_price(client, coin + 'USDT'))
+                g_state.coin_table[coin_dict][coin] = coin_dict_price / coin_price
+
     logger.info("Done initializing, generating file")
     with open(g_state._table_backup_file, "w") as backup_file:
         json.dump(g_state.coin_table, backup_file)
@@ -349,6 +370,10 @@ def main():
     global g_state
     if not (os.path.isfile(g_state._table_backup_file)):
         initialize_trade_thresholds(client)
+
+        logger.info("Purchasing {0} to begin trading".format(g_state.current_coin))
+        buy_alt(client, g_state.current_coin, "USDT")
+        logger.info("Ready to start trading")
 
     while True:
         try:
