@@ -18,10 +18,17 @@ USER_CFG_SECTION = 'binance_user_config'
 
 # Init config
 config = configparser.ConfigParser()
+config['DEFAULT'] = {
+    'scout_transaction_fee': '0.001',
+    'scout_multiplier': '5'
+}
+
 if not os.path.exists(CFG_FL_NAME):
     print('No configuration file (user.cfg) found! See README.')
     exit()
 config.read(CFG_FL_NAME)
+
+# Get config for scout
 SCOUT_TRANSACTION_FEE = float(config.get(USER_CFG_SECTION, 'scout_transaction_fee'))
 SCOUT_MULTIPLIER = float(config.get(USER_CFG_SECTION, 'scout_multiplier'))
 
