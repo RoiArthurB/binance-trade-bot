@@ -22,8 +22,8 @@ if not os.path.exists(CFG_FL_NAME):
     print('No configuration file (user.cfg) found! See README.')
     exit()
 config.read(CFG_FL_NAME)
-SCOUT_TRANSACTION_FEE = float(config.get(USER_CFG_SECTION, 'scoutTransactionFee'))
-SCOUT_MULTIPLIER = float(config.get(USER_CFG_SECTION, 'scoutMultiplier'))
+SCOUT_TRANSACTION_FEE = float(config.get(USER_CFG_SECTION, 'scout_transaction_fee'))
+SCOUT_MULTIPLIER = float(config.get(USER_CFG_SECTION, 'scout_multiplier'))
 
 # Logger setup
 logger = logging.getLogger('crypto_trader_logger')
