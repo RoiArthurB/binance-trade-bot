@@ -22,6 +22,8 @@ if not os.path.exists(CFG_FL_NAME):
     print('No configuration file (user.cfg) found! See README.')
     exit()
 config.read(CFG_FL_NAME)
+SCOUT_TRANSACTION_FEE = float(config.get(USER_CFG_SECTION, 'scoutTransactionFee'))
+SCOUT_MULTIPLIER = float(config.get(USER_CFG_SECTION, 'scoutMultiplier'))
 
 # Logger setup
 logger = logging.getLogger('crypto_trader_logger')
@@ -378,7 +380,7 @@ def main():
     while True:
         try:
             time.sleep(5)
-            scout(client)
+            scout(client, transaction_fee=SCOUT_TRANSACTION_FEE , multiplier=SCOUT_MULTIPLIER)
         except Exception as e:
             logger.info('Error while scouting...\n{}\n'.format(e))
 

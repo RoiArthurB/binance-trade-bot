@@ -4,3 +4,5 @@ api_secret_key=NhqPtmdSJYdKjVHjA7PZj4Mge3R5YNiP1e3UZjInClVN65XAbvqqM6A7H5fATj0j
 current_coin=
 botChatID=
 botToken=
+scout_transaction_fee=0.001
+scout_multiplier=5
