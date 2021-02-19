@@ -38,7 +38,7 @@ The bot jumps between a configured set of coins on the condition that it does no
 
 ### Install Python dependencies
 
-Run the following line in the terminal: `pip install -r requirments.txt`.
+Run the following line in the terminal: `pip install -r requirements.txt`.
 
 ### Create user configuration
 
@@ -54,6 +54,19 @@ For more information about Telegram bots refer to [Telegram's official documenta
 
 `./crypto_trading.py`
 
+### Docker
+
+`docker-compose up`
+
+# Join the Chat
+
+* **Discord**: [Invite Link](https://discord.gg/m4TNaxreCN)
+
 <p align="center">
   <img src = "https://usercontent2.hubstatic.com/6061829.jpg">
 </p>
+
+# Disclaimer
+
+The code within this repository comes with no guarantee. Run it at your own risk. 
+Do not risk money which you are afraid to lose. There might be bugs in the code - this software does not come with any warranty.

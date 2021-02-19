@@ -2,6 +2,7 @@
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 import logging
+import logging.handlers
 import math
 import time
 import os
@@ -11,6 +12,7 @@ from logging import Handler, Formatter
 import datetime
 import requests
 import random
+import queue
 
 # Config consts
 CFG_FL_NAME = 'user.cfg'
@@ -50,6 +52,7 @@ logger.addHandler(ch)
 # Telegram bot
 TELEGRAM_CHAT_ID = config.get(USER_CFG_SECTION, 'botChatID')
 TELEGRAM_TOKEN = config.get(USER_CFG_SECTION, 'botToken')
+BRIDGE = config.get(USER_CFG_SECTION, 'bridge')
 
 class RequestsHandler(Handler):
     def emit(self, record):
@@ -80,10 +83,14 @@ class LogstashFormatter(Formatter):
 
 # logging to Telegram if token exists
 if TELEGRAM_TOKEN:
+    que = queue.Queue(-1)  # no limit on size
+    queue_handler = logging.handlers.QueueHandler(que)
     th = RequestsHandler()
+    listener = logging.handlers.QueueListener(que, th)
     formatter = LogstashFormatter()
     th.setFormatter(formatter)
-    logger.addHandler(th)
+    logger.addHandler(queue_handler)
+    listener.start()
 
 logger.info('Started')
 
@@ -159,6 +166,19 @@ def retry(howmany):
         return f
     return tryIt
 
+def first(iterable, condition = lambda x: True):
+    try:
+        return next(x for x in iterable if condition(x))
+    except StopIteration:
+        return None
+
+
+def get_all_market_tickers(client):
+    '''
+    Get ticker price of all coins
+    '''
+    return client.get_all_tickers()
+
 
 def get_market_ticker_price(client, ticker_symbol):
     '''
@@ -168,6 +188,14 @@ def get_market_ticker_price(client, ticker_symbol):
         if ticker[u'symbol'] == ticker_symbol:
             return float(ticker[u'price'])
     return None
+
+
+def get_market_ticker_price_from_list(all_tickers, ticker_symbol):
+    '''
+    Get ticker price of a specific coin
+    '''
+    ticker = first(all_tickers, condition=lambda x: x[u'symbol'] == ticker_symbol)
+    return float(ticker[u'price']) if ticker else None
 
 
 def get_currency_balance(client, currency_symbol):
@@ -309,10 +337,10 @@ def transaction_through_tether(client, source_coin, dest_coin):
     '''
     result = None
     while result is None:
-        result = sell_alt(client, source_coin, 'USDT')
+        result = sell_alt(client, source_coin, BRIDGE)
     result = None
     while result is None:
-        result = buy_alt(client, dest_coin, 'USDT')
+        result = buy_alt(client, dest_coin, BRIDGE)
     global g_state
     g_state.current_coin = dest_coin
     update_trade_threshold(client)
@@ -322,12 +350,25 @@ def update_trade_threshold(client):
     '''
     Update all the coins with the threshold of buying the current held coin
     '''
+
+    all_tickers = get_all_market_tickers(client)
+
     global g_state
-    current_coin_price = float(get_market_ticker_price(
-        client,  g_state.current_coin + 'USDT'))
+    
+    current_coin_price = get_market_ticker_price_from_list(all_tickers, g_state.current_coin + BRIDGE)
+
+    if current_coin_price is None:
+        logger.info("Skipping update... current coin {0} not found".format(g_state.current_coin + BRIDGE))
+        return
+
     for coin_dict in g_state.coin_table.copy():
-        g_state.coin_table[coin_dict][g_state.current_coin] = float(get_market_ticker_price(
-            client, coin_dict + 'USDT'))/current_coin_price
+        coin_dict_price = get_market_ticker_price_from_list(all_tickers, coin_dict + BRIDGE)
+        
+        if coin_dict_price is None:
+            logger.info("Skipping update for coin {0} not found".format(coin_dict + BRIDGE))
+            continue
+
+        g_state.coin_table[coin_dict][g_state.current_coin] = coin_dict_price/current_coin_price
     with open(g_state._table_backup_file, "w") as backup_file:
         json.dump(g_state.coin_table, backup_file)
 
@@ -336,13 +377,26 @@ def initialize_trade_thresholds(client):
     '''
     Initialize the buying threshold of all the coins for trading between them
     '''
+    
+    all_tickers = get_all_market_tickers(client)
+    
     global g_state
     for coin_dict in g_state.coin_table.copy():
-        coin_dict_price = float(get_market_ticker_price(client, coin_dict + 'USDT'))
+        coin_dict_price = get_market_ticker_price_from_list(all_tickers, coin_dict + BRIDGE)
+        
+        if coin_dict_price is None:
+            logger.info("Skipping initializing {0}, symbol not found".format(coin_dict + BRIDGE))
+            continue
+
         for coin in supported_coin_list:
             logger.info("Initializing {0} vs {1}".format(coin_dict, coin))
             if coin != coin_dict:
-                coin_price = float(get_market_ticker_price(client, coin + 'USDT'))
+                coin_price = get_market_ticker_price_from_list(all_tickers, coin + BRIDGE)
+
+                if coin_price is None:
+                    logger.info("Skipping initializing {0}, symbol not found".format(coin + BRIDGE))
+                    continue
+
                 g_state.coin_table[coin_dict][coin] = coin_dict_price / coin_price
 
     logger.info("Done initializing, generating file")
@@ -354,13 +408,27 @@ def scout(client, transaction_fee=0.001, multiplier=5):
     '''
     Scout for potential jumps from the current coin to another coin
     '''
+
+    all_tickers = get_all_market_tickers(client)
+
     global g_state
-    curr_coin_price = float(get_market_ticker_price(
-        client, g_state.current_coin + 'USDT'))
+    
+    current_coin_price = get_market_ticker_price_from_list(all_tickers, g_state.current_coin + BRIDGE)
+    
+    if current_coin_price is None:
+        logger.info("Skipping scouting... current coin {0} not found".format(g_state.current_coin + BRIDGE))
+        return
+
     for optional_coin in [coin for coin in g_state.coin_table[g_state.current_coin].copy() if coin != g_state.current_coin]:
+        optional_coin_price =  get_market_ticker_price_from_list(all_tickers, optional_coin + BRIDGE)
+
+        if optional_coin_price is None:
+            logger.info("Skipping scouting... optional coin {0} not found".format(optional_coin + BRIDGE))
+            continue
+
         # Obtain (current coin)/(optional coin)
-        coin_opt_coin_ratio = curr_coin_price / \
-            float(get_market_ticker_price(client, optional_coin + 'USDT'))
+        coin_opt_coin_ratio = current_coin_price / \
+           optional_coin_price
 
         if (coin_opt_coin_ratio - transaction_fee * multiplier * coin_opt_coin_ratio) > g_state.coin_table[g_state.current_coin][optional_coin]:
             logger.info('Will be jumping from {0} to {1}'.format(
@@ -379,10 +447,10 @@ def main():
     global g_state
     if not (os.path.isfile(g_state._table_backup_file)):
         initialize_trade_thresholds(client)
-
-        logger.info("Purchasing {0} to begin trading".format(g_state.current_coin))
-        buy_alt(client, g_state.current_coin, "USDT")
-        logger.info("Ready to start trading")
+        if config.get(USER_CFG_SECTION, 'current_coin') == '':
+            logger.info("Purchasing {0} to begin trading".format(g_state.current_coin))
+            buy_alt(client, g_state.current_coin, BRIDGE)
+            logger.info("Ready to start trading")
 
     while True:
         try:
