@@ -13,6 +13,7 @@ import datetime
 import requests
 import random
 import queue
+from termcolor import cprint
 
 # Config consts
 CFG_FL_NAME = 'user.cfg'
@@ -441,13 +442,23 @@ def scout(client, transaction_fee=0.001, multiplier=5):
             break
         else:
             difference = (current_value - required_value ) / required_value * 100
-            logger.info('Will not jump to {0}. Cur: {1}, Req: {2}, Diff: {3} % '.format(
+            text = ('Will not jump from {0} to {1}. Cur: {2}, Req: {3}, Diff: {4} % '.format(
+                g_state.current_coin,
                 optional_coin,
-                round(current_value, 6),
-                round(required_value, 6),
+                round(current_value, 8),
+                round(required_value, 8),
                 round(difference, 2)
             ))
 
+            if difference >= -2:
+                color = 'green'
+            elif difference >= -5:
+                color = 'yellow'
+            else:
+                color = 'red'
+
+            cprint(text, color)
+    print('---')
 
 def main():
     api_key = config.get(USER_CFG_SECTION, 'api_key')
