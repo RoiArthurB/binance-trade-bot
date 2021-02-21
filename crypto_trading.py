@@ -467,7 +467,11 @@ def scout(client, transaction_fee=0.001, multiplier=5):
             else:
                 color = 'red'
 
-            cprint(text, color)
+            if heartbeat_duration != 0 and time.time() - heartbeat >= heartbeat_duration:
+                logger.info(text)
+                heartbeat = time.time()
+            else:
+                cprint(text, color)
     print('---')
 
 def main():
@@ -490,9 +494,7 @@ def main():
         try:
             time.sleep(5)
             scout(client, transaction_fee=SCOUT_TRANSACTION_FEE , multiplier=SCOUT_MULTIPLIER)
-            if heartbeat_duration != 0 and time.time() - heartbeat > heartbeat_duration:
-                logger.info('Still scouting...')
-                heartbeat = time.time()
+            #if heartbeat_duration != 0 and time.time() - heartbeat > heartbeat_duration:
         except Exception as e:
             logger.info('Error while scouting...\n{}\n'.format(e))
 
