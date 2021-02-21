@@ -9,6 +9,7 @@ import os
 import json
 import configparser
 from logging import Handler, Formatter
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import datetime
 import requests
 import random
@@ -55,6 +56,11 @@ TELEGRAM_CHAT_ID = config.get(USER_CFG_SECTION, 'botChatID')
 TELEGRAM_TOKEN = config.get(USER_CFG_SECTION, 'botToken')
 BRIDGE = config.get(USER_CFG_SECTION, 'bridge')
 
+
+# ping command to check if bot is running
+def ping(update, context):
+    update.message.reply_text('pong')
+
 class RequestsHandler(Handler):
     def emit(self, record):
         log_entry = self.format(record)
@@ -91,6 +97,10 @@ if TELEGRAM_TOKEN:
     formatter = LogstashFormatter()
     th.setFormatter(formatter)
     logger.addHandler(queue_handler)
+    updater = Updater(TELEGRAM_TOKEN, use_context=True)
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler('ping', ping))
+    updater.start_polling()
     listener.start()
 
 logger.info('Started')
