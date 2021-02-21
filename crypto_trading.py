@@ -13,6 +13,7 @@ import datetime
 import requests
 import random
 import queue
+from termcolor import cprint
 
 # Config consts
 CFG_FL_NAME = 'user.cfg'
@@ -412,9 +413,9 @@ def scout(client, transaction_fee=0.001, multiplier=5):
     all_tickers = get_all_market_tickers(client)
 
     global g_state
-    
+
     current_coin_price = get_market_ticker_price_from_list(all_tickers, g_state.current_coin + BRIDGE)
-    
+
     if current_coin_price is None:
         logger.info("Skipping scouting... current coin {0} not found".format(g_state.current_coin + BRIDGE))
         return
@@ -430,13 +431,34 @@ def scout(client, transaction_fee=0.001, multiplier=5):
         coin_opt_coin_ratio = current_coin_price / \
            optional_coin_price
 
-        if (coin_opt_coin_ratio - transaction_fee * multiplier * coin_opt_coin_ratio) > g_state.coin_table[g_state.current_coin][optional_coin]:
+        current_value = coin_opt_coin_ratio - transaction_fee * multiplier * coin_opt_coin_ratio
+        required_value = g_state.coin_table[g_state.current_coin][optional_coin]
+
+        if current_value > required_value:
             logger.info('Will be jumping from {0} to {1}'.format(
                 g_state.current_coin, optional_coin))
             transaction_through_tether(
                 client, g_state.current_coin, optional_coin)
             break
+        else:
+            difference = (current_value - required_value ) / required_value * 100
+            text = ('Will not jump from {0} to {1}. Cur: {2}, Req: {3}, Diff: {4} % '.format(
+                g_state.current_coin,
+                optional_coin,
+                round(current_value, 8),
+                round(required_value, 8),
+                round(difference, 2)
+            ))
 
+            if difference >= -2:
+                color = 'green'
+            elif difference >= -5:
+                color = 'yellow'
+            else:
+                color = 'red'
+
+            cprint(text, color)
+    print('---')
 
 def main():
     api_key = config.get(USER_CFG_SECTION, 'api_key')
