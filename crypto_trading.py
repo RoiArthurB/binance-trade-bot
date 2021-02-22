@@ -423,12 +423,12 @@ def scout(client: Client, transaction_fee=0.001, multiplier=5):
                 client, current_coin, pair.to_coin)
             break
         else:
-            difference = (current_value - required_value ) / required_value * 100
+            difference = (current_coin_price - pair.ratio ) / pair.ratio * 100
             text = ('Will not jump from {0} to {1}. Cur: {2}, Req: {3}, Diff: {4} % '.format(
-                g_state.current_coin,
-                optional_coin,
-                round(current_value, 8),
-                round(required_value, 8),
+                current_coin, 
+                pair.to_coin,
+                round(current_coin_price, 8),
+                round(pair.ratio, 8),
                 round(difference, 2)
             ))
 
@@ -439,11 +439,7 @@ def scout(client: Client, transaction_fee=0.001, multiplier=5):
             else:
                 color = 'red'
 
-            if heartbeat_duration != 0 and time.time() - heartbeat >= heartbeat_duration:
-                logger.info(text)
-                heartbeat = time.time()
-            else:
-                cprint(text, color)
+            cprint(text, color)
     print('---')
 
 def migrate_old_state():
