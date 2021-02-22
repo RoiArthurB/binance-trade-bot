@@ -1,3 +1,4 @@
 python-binance>=0.3
+sqlalchemy
 termcolor
 python-telegram-bot>=13.3 
