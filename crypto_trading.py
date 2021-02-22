@@ -509,7 +509,9 @@ def main():
         try:
             time.sleep(5)
             scout(client, transaction_fee=SCOUT_TRANSACTION_FEE , multiplier=SCOUT_MULTIPLIER)
-            #if heartbeat_duration != 0 and time.time() - heartbeat > heartbeat_duration:
+            if heartbeat_duration != 0 and time.time() - heartbeat > heartbeat_duration:
+                logger.info('Still scouting...')
+                heartbeat = time.time()
         except Exception as e:
             logger.info('Error while scouting...\n{}\n'.format(traceback.format_exc()))
 
