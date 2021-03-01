@@ -47,21 +47,6 @@ config.read(CFG_FL_NAME)
 SCOUT_TRANSACTION_FEE = float(config.get(USER_CFG_SECTION, 'scout_transaction_fee'))
 SCOUT_MULTIPLIER = float(config.get(USER_CFG_SECTION, 'scout_multiplier'))
 
-# Logger setup
-logger = logging.getLogger('crypto_trader_logger')
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh = logging.FileHandler('crypto_trading.log')
-fh.setLevel(logging.DEBUG)
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-
-# logging to console
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
 # Telegram bot
 TELEGRAM_CHAT_ID = config.get(USER_CFG_SECTION, 'botChatID')
 TELEGRAM_TOKEN = config.get(USER_CFG_SECTION, 'botToken')
