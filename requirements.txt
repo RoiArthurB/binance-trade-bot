@@ -1,4 +1,11 @@
 python-binance>=0.3
 sqlalchemy
-termcolor
+schedule
+apprise
+Flask
+gunicorn
+flask-cors
+flask-socketio
+eventlet
+python-socketio[client]
 python-telegram-bot>=13.3 
